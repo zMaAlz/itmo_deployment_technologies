@@ -1,0 +1,66 @@
+---
+- name: server preparation
+  hosts: all
+  pre_tasks:
+    - name: Show facts available on the ansible_facts
+      ansible.builtin.debug:
+        var: ansible_facts['nodename']  #  "nodename": "astra-sql-01", "os_family": "Astra Linux","distribution_version": "1.8_x86-64"
+    - name: "Detect Astra Linux Servers 1.8"
+      debug:
+        msg: "Find on astra 1.8..."     
+      when: ansible_facts['os_family'] == "Astra Linux" and ansible_facts['distribution_version'] == "1.8_x86-64"
+      changed_when: False
+    - name: Check directory {{ WORKDIR }} # Проверяем наличие каталога
+      ansible.builtin.stat:
+        path: "{{ WORKDIR }}"
+      register: dir_check
+    - name: Stop docker-compose # Если каталог найден, то останавливаем контейнеры описанные в docker compose
+      become: true
+      community.docker.docker_compose_v2:
+        project_src: "{{ WORKDIR }}"
+        state: absent
+      when: dir_check.stat.exists and dir_check.stat.isdir      
+      ignore_errors: true
+    - name: Install Docker and modules python # Устанавливаем модули и пакеты в случае отсутсвия 
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+        pkg:
+          - docker.io
+          - docker-compose-v2
+          - python3-pip
+          - python3-requests
+        state: present
+      when: ansible_facts['os_family'] == "Astra Linux" and ansible_facts['distribution_version'] == "1.8_x86-64"
+  tasks:
+    - name: Create a directory {{ WORKDIR }} # Создаем каталог, если он не найден
+      become: true
+      ansible.builtin.file:
+        path: "{{ WORKDIR }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Copy file with owner and permissions # Копируем конфигурационные файлы веб-сервера и прокси сервера
+      become: true
+      ansible.builtin.copy:
+        src: "./templates/1c-web-server/" 
+        dest: "{{ WORKDIR }}/"
+        mode: '0755'
+    - name: Copy docker-compose.yaml # Копируем файл docker-compose.yaml
+      become: true
+      ansible.builtin.template:
+        src: "./templates/docker-compose-yaml.j2" 
+        dest: "{{ WORKDIR }}/docker-compose.yaml"
+        mode: '0644'
+    - name: Login "{{ REGISTRY_URL }}" # Авторизуемся в Git (для последующей загрузки образа)
+      become: true
+      community.docker.docker_login:
+        registry_url: "{{ REGISTRY_URL }}"
+        username: "{{ REGISTRY_USER }}"
+        password: "{{ REGISTRY_PASS }}"
+        reauthorize: true
+    - name: Start docker-compose # Запускаем docker-compose
+      become: true
+      community.docker.docker_compose_v2:
+        project_src: "{{ WORKDIR }}"

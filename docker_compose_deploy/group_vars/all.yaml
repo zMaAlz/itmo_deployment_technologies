@@ -1,0 +1,15 @@
+---
+#hosts.yaml
+CONFIGURABLE_HOST1: "" # Адрес сервера, куда устанавливаем. Формат xxx.xxx.xxx.xxx
+USER_ANSIBLE_CONNECT: "" # Пользователь на сервере
+SSH_PRIVATE_KEY_PATH: "" # Путь к приватному ключу. Например ~/.ssh/key
+#deploy_web_server_1с.yaml
+WORKDIR: "" # Директория развертывания на сервере. Например /opt/1c-web-server
+REGISTRY_URL: "" # Реестр контейнеров, где находится образ
+REGISTRY_USER: "" # Пользователь реестра контейнеров
+REGISTRY_PASS: "" # Пароль/токен пользователя реестра контейнеров
+#docker-compose-yaml
+IMG_1C_WEB_SERVER: "" # Имя образа. Например web-server-1c:8.3.27.2214
+IMG_NGINX_PROXY: "nginx:1.31.3-perl" # Версия прокси-сервера Nginx
+WEB1C_HOSTNAME: "1c.test.local" # URL web сервера 
+LB_HOSTNAME_PORT: "443" # Порт nginx сервера

@@ -1,0 +1,42 @@
+---
+services:
+  apache-1c-web:  # web-сервер c платформой 1С (apache)
+    image: "{{ IMG_1C_WEB_SERVER }}"
+    container_name: apache-1c-web
+    volumes:
+      - ./inetpub:/usr/local/apache2/htdocs/inetpub # директория с файлами  публикации 1С (default.vrd)
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro # конфиг веб-сервера Apache
+    # ports:  # для отладки (прямой доступ к Apache)
+    #   - 80:80
+    restart: unless-stopped
+    logging:
+      driver: "local"
+      options:
+        max-size: "200m"
+    networks: 
+      - 1c-nw
+  nginx-lb:  # Прокси-сервер (Nginx)
+    image: "{{ IMG_NGINX_PROXY }}"
+    container_name: nginx-lb
+    environment:
+       LB_SERVER_NAME: "{{ WEB1C_HOSTNAME }}"
+       LB_HOSTNAME_PORT: "{{ LB_HOSTNAME_PORT }}"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy.conf:/etc/nginx/templates/proxy.conf.template:ro
+      - ./secret/private.key:/etc/nginx/secrets/private.key:ro
+      - ./secret/public.crt:/etc/nginx/secrets/public.crt:ro
+    ports:
+      - {{ LB_HOSTNAME_PORT }}:{{ LB_HOSTNAME_PORT }}
+    restart: unless-stopped
+    depends_on:
+      - apache-1c-web
+    logging:
+      driver: "local"
+      options:
+        max-size: "200m"
+    networks: 
+      - 1c-nw
+networks:
+  1c-nw:
+    driver: bridge
